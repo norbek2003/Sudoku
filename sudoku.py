@@ -8,8 +8,6 @@ sudoku.py  <input-filename> <output-filename>  <name-of-sudoku-board> <search-fo
 If no output file is specified, the program prints the solved puzzle.
 
 <name-of-sudoku-board> is for when there are multiple puzzles in the file.
-
-<search-for-naked> is true by default, can be 1 or 0
 """
 class SudokuPuzzle:
     """ A class for sudoku puzzles. """
