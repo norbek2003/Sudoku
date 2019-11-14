@@ -46,23 +46,17 @@ class SudokuPuzzle:
         self.columns = {col:set(row[col] for row in self.data) - {0} for col in xrange(9)}
         self.groups = {group:set() for group in xrange(1, 10)}
         self.initGroups()
-        #if self.naked:
-        #    while not self.solved:
-        #        self.solveNaked()
-        #else:
-        #    while not self.solved:
-        #        self.solve()
         self.spam = 0
     def solve(self):
         """ Solves the sudoku until their is a solution, contradiction, or dead end. """
         while not self.solved:
             self.solveNaked()
     def solveNaked(self):
-        """ Solves the sudoku until their is a solution, contradiction, or dead end while taking naked pairs/triplets into account. """
+        """ Solves the sudoku until there is a solution, contradiction, or dead end while taking naked pairs/triplets into account. """
         self.solved = True
         while self.knownCount < 81:
             count = self.knownCount
-            nakedNums = self.forbiddenFruit()
+            #nakedNums = self.forbiddenFruit()
             for coord in self.possibleValues:
                 self.possibleValues[coord] -= (self.getNeighbors(coord) | self.impossibleValues[coord]  | {0})               
                 if len(self.possibleValues[coord]) == 1: # One spot solved for
@@ -71,7 +65,8 @@ class SudokuPuzzle:
                 elif not self.possibleValues[coord]: # Empty set = contradiction
                     self.solved = False
                     self.reloadState()
-                    break                
+                    break
+            nakedNums = self.forbiddenFruit()
             if count == self.knownCount and not nakedNums: # dead end
                 self.saveState()
                 self.guessBest()
@@ -86,7 +81,8 @@ class SudokuPuzzle:
     def printData(self):
         """ Prints the data. """
         for line in self.data:
-            print " ".join([str(i) for i in line])  
+            print " ".join([str(i) for i in line])
+        print ""
     def printDataFile(self):
         """ Prints the Sudoku grid for a file in readable output. """
         for line in self.data:
@@ -101,12 +97,13 @@ class SudokuPuzzle:
         """ Returns the neigbors of a coordinate. """
         x, y = coord
         return (self.rows[y] | self.columns[x] | self.groups[self.getGroup(x, y)]) - {self.data[y][x]}
-    def setValue(self, coord, guess=False):
+    def setValue(self, coord, guess=False, guessVal=0):
         """ Updates the value of a coordinate. """
         x, y = coord
         val = sum(self.possibleValues[coord])
         if guess:
-            val = (self.possibleValues[coord] - self.impossibleValues[coord]).pop()
+            val = guessVal
+            #val = (self.possibleValues[coord] - self.impossibleValues[coord]).pop()
             self.possibleValues[coord].remove(val)
             self.possibleValues[coord] = {val}
         if self.data[y][x] != val:
@@ -155,15 +152,23 @@ class SudokuPuzzle:
         if self.root:
             state["impossibleValues"][self.root[0]].add(self.root[1])
             self.impossibleValues[self.root[0]].add(self.root[1])
-
         state["backTracks"] = self.backTracks + 1
         state["savedStates"] = self.savedStates
         self.__dict__ = state
     def guessBest(self):
         """ Guesses the choice with the highest probability and sets it."""
-        z = {i:(self.possibleValues[i] - self.impossibleValues[i]) for i in self.possibleValues}
-        bestCoord = min(z, key=lambda k: len(z[k]) if len(z[k]) > 1 else 10)
-        self.setValue(bestCoord, guess=True)
+        #Get the true(past tries excluded) possible values for each value
+        search_field = {i:(self.possibleValues[i] - self.impossibleValues[i]) for i in self.possibleValues}
+        #Get the counts of times a number is a possible value @deprecated
+        #counts = {i:sum(i in search_field[coord_values] for coord_values in search_field if len(search_field[coord_values])) for i in range(10)}        
+        #Get the coord with the least number of possible values
+        bestCoord = min(search_field, key=lambda k: len(search_field[k]) if len(search_field[k]) > 1 else 10)
+        #Apply the additional heuristic, sort the chosen coordinates possible values by how often those values could be other solutions @ deprecated
+        #vals = sorted(search_field[bestCoord], key = lambda k: counts[k], reverse=True)
+        vals = list(search_field[bestCoord])
+        #print "Guessing", bestCoord, vals[0]
+        #self.printData()
+        self.setValue(bestCoord, guess=True, guessVal = vals[0])
         self.root = (bestCoord, self.getCoordValue(bestCoord))
         self.possibleValues[bestCoord] = {self.getCoordValue(bestCoord)}
     def getCoordValue(self, coord):
@@ -201,7 +206,6 @@ class SudokuPuzzle:
                             if not (self.possibleValues[coord] <= pGroup) and not (pGroup <= self.impossibleValues[coord]):
                                 self.impossibleValues[coord] |= pGroup     
                                 change = True
-								
         return change
     def nakedSub(self, coords):
         """ Deals with repetive subproblems for naked pairs. Also serves as reminder to read code out loud. """
